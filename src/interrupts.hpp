@@ -1,15 +1,16 @@
 #pragma once
 
 #include "types.hpp"
+#include <bit>
 
 class interrupts {
 public:
-    enum source : unsigned {
-        vblank = 0,
-        lcd = 1,
-        timer = 2,
-        serial = 3,
-        joypad = 4,
+    enum source : u8 {
+        vblank = 0b1,
+        lcd = 0b10,
+        timer = 0b100,
+        serial = 0b1000,
+        joypad = 0b10000,
     };
 
     u8 flag{0xE1};
@@ -22,5 +23,6 @@ public:
     [[nodiscard]] u16 consume();
 
 private:
-    static constexpr u8 handler[5]{0x40, 0x48, 0x50, 0x58, 0x60};
+    static constexpr u16 base{0x40};
+    static constexpr u16 scale{8};
 };

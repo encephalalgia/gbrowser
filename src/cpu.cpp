@@ -1,4 +1,5 @@
 #include "cpu.hpp"
+#include <utility>
 #include "scheduler.hpp"
 #include "mmu.hpp"
 #include "interrupts.hpp"
@@ -25,18 +26,17 @@ bool cpu::evaluate_condition() const
         case condition::c: return cf;
     }
 
-    // quiet warning
-    return false;
+    std::unreachable();
 }
 
 template<cpu::r hi, cpu::r lo>
 u16 cpu::get_pair() const
 {
     if constexpr (lo == f) {
-        return reg[hi] << 8 | zf << zbit | nf << nbit | hf << hbit | cf << cbit;
+        return static_cast<u16>(reg[hi]) << 8 | zf << zbit | nf << nbit | hf << hbit | cf << cbit;
     }
     else {
-        return reg[hi] << 8 | reg[lo];
+        return static_cast<u16>(reg[hi]) << 8 | reg[lo];
     }
 }
 
@@ -90,7 +90,8 @@ cpu::operand_t<M> cpu::get_operand()
         return mmu.read16(pc - 2);
     }
     else if constexpr (M == address_mode::imm_16_indirect) return mmu.read8(get_operand<address_mode::imm_16>());
-    return static_cast<u16>(0); // quiet warning
+
+    std::unreachable();
 }
 
 template<cpu::address_mode M>
@@ -164,8 +165,9 @@ u8 cpu::fetch()
 }
 
 #pragma region Misc Instructions
-void cpu::stop() const
+void cpu::stop()
 {
+    ++pc; // STOP skips one byte after itself
     scheduler.stop();
 }
 
@@ -268,7 +270,7 @@ void cpu::add()
     else {
         const u16 augend{get_operand<address_mode::hl>()};
         const u16 addend{get_operand<M>()};
-        const u32 sum{static_cast<u32>(augend + addend)};
+        const u32 sum{static_cast<u32>(augend) + addend};
 
         nf = false;
         hf = (augend ^ addend ^ sum) & 0x1000;
@@ -892,283 +894,7 @@ void cpu::tick()
         case 0xC8: ret<condition::z>(); break;
         case 0xC9: ret(); break;
         case 0xCA: jp<condition::z>(); break;
-        case 0xCB: {
-            switch (get_operand<address_mode::imm_8>()) {
-                case 0x00: rlc<address_mode::b>(); break;
-                case 0x01: rlc<address_mode::c>(); break;
-                case 0x02: rlc<address_mode::d>(); break;
-                case 0x03: rlc<address_mode::e>(); break;
-                case 0x04: rlc<address_mode::h>(); break;
-                case 0x05: rlc<address_mode::l>(); break;
-                case 0x06: rlc<address_mode::hl_indirect>(); break;
-                case 0x07: rlc<address_mode::a>(); break;
-                case 0x08: rrc<address_mode::b>(); break;
-                case 0x09: rrc<address_mode::c>(); break;
-                case 0x0A: rrc<address_mode::d>(); break;
-                case 0x0B: rrc<address_mode::e>(); break;
-                case 0x0C: rrc<address_mode::h>(); break;
-                case 0x0D: rrc<address_mode::l>(); break;
-                case 0x0E: rrc<address_mode::hl_indirect>(); break;
-                case 0x0F: rrc<address_mode::a>(); break;
-
-                case 0x10: rl<address_mode::b>(); break;
-                case 0x11: rl<address_mode::c>(); break;
-                case 0x12: rl<address_mode::d>(); break;
-                case 0x13: rl<address_mode::e>(); break;
-                case 0x14: rl<address_mode::h>(); break;
-                case 0x15: rl<address_mode::l>(); break;
-                case 0x16: rl<address_mode::hl_indirect>(); break;
-                case 0x17: rl<address_mode::a>(); break;
-                case 0x18: rr<address_mode::b>(); break;
-                case 0x19: rr<address_mode::c>(); break;
-                case 0x1A: rr<address_mode::d>(); break;
-                case 0x1B: rr<address_mode::e>(); break;
-                case 0x1C: rr<address_mode::h>(); break;
-                case 0x1D: rr<address_mode::l>(); break;
-                case 0x1E: rr<address_mode::hl_indirect>(); break;
-                case 0x1F: rr<address_mode::a>(); break;
-
-                case 0x20: sla<address_mode::b>(); break;
-                case 0x21: sla<address_mode::c>(); break;
-                case 0x22: sla<address_mode::d>(); break;
-                case 0x23: sla<address_mode::e>(); break;
-                case 0x24: sla<address_mode::h>(); break;
-                case 0x25: sla<address_mode::l>(); break;
-                case 0x26: sla<address_mode::hl_indirect>(); break;
-                case 0x27: sla<address_mode::a>(); break;
-                case 0x28: sra<address_mode::b>(); break;
-                case 0x29: sra<address_mode::c>(); break;
-                case 0x2A: sra<address_mode::d>(); break;
-                case 0x2B: sra<address_mode::e>(); break;
-                case 0x2C: sra<address_mode::h>(); break;
-                case 0x2D: sra<address_mode::l>(); break;
-                case 0x2E: sra<address_mode::hl_indirect>(); break;
-                case 0x2F: sra<address_mode::a>(); break;
-
-                case 0x30: swap<address_mode::b>(); break;
-                case 0x31: swap<address_mode::c>(); break;
-                case 0x32: swap<address_mode::d>(); break;
-                case 0x33: swap<address_mode::e>(); break;
-                case 0x34: swap<address_mode::h>(); break;
-                case 0x35: swap<address_mode::l>(); break;
-                case 0x36: swap<address_mode::hl_indirect>(); break;
-                case 0x37: swap<address_mode::a>(); break;
-                case 0x38: srl<address_mode::b>(); break;
-                case 0x39: srl<address_mode::c>(); break;
-                case 0x3A: srl<address_mode::d>(); break;
-                case 0x3B: srl<address_mode::e>(); break;
-                case 0x3C: srl<address_mode::h>(); break;
-                case 0x3D: srl<address_mode::l>(); break;
-                case 0x3E: srl<address_mode::hl_indirect>(); break;
-                case 0x3F: srl<address_mode::a>(); break;
-
-                case 0x40: bit<address_mode::b, 0>(); break;
-                case 0x41: bit<address_mode::c, 0>(); break;
-                case 0x42: bit<address_mode::d, 0>(); break;
-                case 0x43: bit<address_mode::e, 0>(); break;
-                case 0x44: bit<address_mode::h, 0>(); break;
-                case 0x45: bit<address_mode::l, 0>(); break;
-                case 0x46: bit<address_mode::hl_indirect, 0>(); break;
-                case 0x47: bit<address_mode::a, 0>(); break;
-                case 0x48: bit<address_mode::b, 1>(); break;
-                case 0x49: bit<address_mode::c, 1>(); break;
-                case 0x4A: bit<address_mode::d, 1>(); break;
-                case 0x4B: bit<address_mode::e, 1>(); break;
-                case 0x4C: bit<address_mode::h, 1>(); break;
-                case 0x4D: bit<address_mode::l, 1>(); break;
-                case 0x4E: bit<address_mode::hl_indirect, 1>(); break;
-                case 0x4F: bit<address_mode::a, 1>(); break;
-
-                case 0x50: bit<address_mode::b, 2>(); break;
-                case 0x51: bit<address_mode::c, 2>(); break;
-                case 0x52: bit<address_mode::d, 2>(); break;
-                case 0x53: bit<address_mode::e, 2>(); break;
-                case 0x54: bit<address_mode::h, 2>(); break;
-                case 0x55: bit<address_mode::l, 2>(); break;
-                case 0x56: bit<address_mode::hl_indirect, 2>(); break;
-                case 0x57: bit<address_mode::a, 2>(); break;
-                case 0x58: bit<address_mode::b, 3>(); break;
-                case 0x59: bit<address_mode::c, 3>(); break;
-                case 0x5A: bit<address_mode::d, 3>(); break;
-                case 0x5B: bit<address_mode::e, 3>(); break;
-                case 0x5C: bit<address_mode::h, 3>(); break;
-                case 0x5D: bit<address_mode::l, 3>(); break;
-                case 0x5E: bit<address_mode::hl_indirect, 3>(); break;
-                case 0x5F: bit<address_mode::a, 3>(); break;
-
-                case 0x60: bit<address_mode::b, 4>(); break;
-                case 0x61: bit<address_mode::c, 4>(); break;
-                case 0x62: bit<address_mode::d, 4>(); break;
-                case 0x63: bit<address_mode::e, 4>(); break;
-                case 0x64: bit<address_mode::h, 4>(); break;
-                case 0x65: bit<address_mode::l, 4>(); break;
-                case 0x66: bit<address_mode::hl_indirect, 4>(); break;
-                case 0x67: bit<address_mode::a, 4>(); break;
-                case 0x68: bit<address_mode::b, 5>(); break;
-                case 0x69: bit<address_mode::c, 5>(); break;
-                case 0x6A: bit<address_mode::d, 5>(); break;
-                case 0x6B: bit<address_mode::e, 5>(); break;
-                case 0x6C: bit<address_mode::h, 5>(); break;
-                case 0x6D: bit<address_mode::l, 5>(); break;
-                case 0x6E: bit<address_mode::hl_indirect, 5>(); break;
-                case 0x6F: bit<address_mode::a, 5>(); break;
-
-                case 0x70: bit<address_mode::b, 6>(); break;
-                case 0x71: bit<address_mode::c, 6>(); break;
-                case 0x72: bit<address_mode::d, 6>(); break;
-                case 0x73: bit<address_mode::e, 6>(); break;
-                case 0x74: bit<address_mode::h, 6>(); break;
-                case 0x75: bit<address_mode::l, 6>(); break;
-                case 0x76: bit<address_mode::hl_indirect, 6>(); break;
-                case 0x77: bit<address_mode::a, 6>(); break;
-                case 0x78: bit<address_mode::b, 7>(); break;
-                case 0x79: bit<address_mode::c, 7>(); break;
-                case 0x7A: bit<address_mode::d, 7>(); break;
-                case 0x7B: bit<address_mode::e, 7>(); break;
-                case 0x7C: bit<address_mode::h, 7>(); break;
-                case 0x7D: bit<address_mode::l, 7>(); break;
-                case 0x7E: bit<address_mode::hl_indirect, 7>(); break;
-                case 0x7F: bit<address_mode::a, 7>(); break;
-
-                case 0x80: res<address_mode::b, 0>(); break;
-                case 0x81: res<address_mode::c, 0>(); break;
-                case 0x82: res<address_mode::d, 0>(); break;
-                case 0x83: res<address_mode::e, 0>(); break;
-                case 0x84: res<address_mode::h, 0>(); break;
-                case 0x85: res<address_mode::l, 0>(); break;
-                case 0x86: res<address_mode::hl_indirect, 0>(); break;
-                case 0x87: res<address_mode::a, 0>(); break;
-                case 0x88: res<address_mode::b, 1>(); break;
-                case 0x89: res<address_mode::c, 1>(); break;
-                case 0x8A: res<address_mode::d, 1>(); break;
-                case 0x8B: res<address_mode::e, 1>(); break;
-                case 0x8C: res<address_mode::h, 1>(); break;
-                case 0x8D: res<address_mode::l, 1>(); break;
-                case 0x8E: res<address_mode::hl_indirect, 1>(); break;
-                case 0x8F: res<address_mode::a, 1>(); break;
-
-                case 0x90: res<address_mode::b, 2>(); break;
-                case 0x91: res<address_mode::c, 2>(); break;
-                case 0x92: res<address_mode::d, 2>(); break;
-                case 0x93: res<address_mode::e, 2>(); break;
-                case 0x94: res<address_mode::h, 2>(); break;
-                case 0x95: res<address_mode::l, 2>(); break;
-                case 0x96: res<address_mode::hl_indirect, 2>(); break;
-                case 0x97: res<address_mode::a, 2>(); break;
-                case 0x98: res<address_mode::b, 3>(); break;
-                case 0x99: res<address_mode::c, 3>(); break;
-                case 0x9A: res<address_mode::d, 3>(); break;
-                case 0x9B: res<address_mode::e, 3>(); break;
-                case 0x9C: res<address_mode::h, 3>(); break;
-                case 0x9D: res<address_mode::l, 3>(); break;
-                case 0x9E: res<address_mode::hl_indirect, 3>(); break;
-                case 0x9F: res<address_mode::a, 3>(); break;
-
-                case 0xA0: res<address_mode::b, 4>(); break;
-                case 0xA1: res<address_mode::c, 4>(); break;
-                case 0xA2: res<address_mode::d, 4>(); break;
-                case 0xA3: res<address_mode::e, 4>(); break;
-                case 0xA4: res<address_mode::h, 4>(); break;
-                case 0xA5: res<address_mode::l, 4>(); break;
-                case 0xA6: res<address_mode::hl_indirect, 4>(); break;
-                case 0xA7: res<address_mode::a, 4>(); break;
-                case 0xA8: res<address_mode::b, 5>(); break;
-                case 0xA9: res<address_mode::c, 5>(); break;
-                case 0xAA: res<address_mode::d, 5>(); break;
-                case 0xAB: res<address_mode::e, 5>(); break;
-                case 0xAC: res<address_mode::h, 5>(); break;
-                case 0xAD: res<address_mode::l, 5>(); break;
-                case 0xAE: res<address_mode::hl_indirect, 5>(); break;
-                case 0xAF: res<address_mode::a, 5>(); break;
-
-                case 0xB0: res<address_mode::b, 6>(); break;
-                case 0xB1: res<address_mode::c, 6>(); break;
-                case 0xB2: res<address_mode::d, 6>(); break;
-                case 0xB3: res<address_mode::e, 6>(); break;
-                case 0xB4: res<address_mode::h, 6>(); break;
-                case 0xB5: res<address_mode::l, 6>(); break;
-                case 0xB6: res<address_mode::hl_indirect, 6>(); break;
-                case 0xB7: res<address_mode::a, 6>(); break;
-                case 0xB8: res<address_mode::b, 7>(); break;
-                case 0xB9: res<address_mode::c, 7>(); break;
-                case 0xBA: res<address_mode::d, 7>(); break;
-                case 0xBB: res<address_mode::e, 7>(); break;
-                case 0xBC: res<address_mode::h, 7>(); break;
-                case 0xBD: res<address_mode::l, 7>(); break;
-                case 0xBE: res<address_mode::hl_indirect, 7>(); break;
-                case 0xBF: res<address_mode::a, 7>(); break;
-
-                case 0xC0: set<address_mode::b, 0>(); break;
-                case 0xC1: set<address_mode::c, 0>(); break;
-                case 0xC2: set<address_mode::d, 0>(); break;
-                case 0xC3: set<address_mode::e, 0>(); break;
-                case 0xC4: set<address_mode::h, 0>(); break;
-                case 0xC5: set<address_mode::l, 0>(); break;
-                case 0xC6: set<address_mode::hl_indirect, 0>(); break;
-                case 0xC7: set<address_mode::a, 0>(); break;
-                case 0xC8: set<address_mode::b, 1>(); break;
-                case 0xC9: set<address_mode::c, 1>(); break;
-                case 0xCA: set<address_mode::d, 1>(); break;
-                case 0xCB: set<address_mode::e, 1>(); break;
-                case 0xCC: set<address_mode::h, 1>(); break;
-                case 0xCD: set<address_mode::l, 1>(); break;
-                case 0xCE: set<address_mode::hl_indirect, 1>(); break;
-                case 0xCF: set<address_mode::a, 1>(); break;
-
-                case 0xD0: set<address_mode::b, 2>(); break;
-                case 0xD1: set<address_mode::c, 2>(); break;
-                case 0xD2: set<address_mode::d, 2>(); break;
-                case 0xD3: set<address_mode::e, 2>(); break;
-                case 0xD4: set<address_mode::h, 2>(); break;
-                case 0xD5: set<address_mode::l, 2>(); break;
-                case 0xD6: set<address_mode::hl_indirect, 2>(); break;
-                case 0xD7: set<address_mode::a, 2>(); break;
-                case 0xD8: set<address_mode::b, 3>(); break;
-                case 0xD9: set<address_mode::c, 3>(); break;
-                case 0xDA: set<address_mode::d, 3>(); break;
-                case 0xDB: set<address_mode::e, 3>(); break;
-                case 0xDC: set<address_mode::h, 3>(); break;
-                case 0xDD: set<address_mode::l, 3>(); break;
-                case 0xDE: set<address_mode::hl_indirect, 3>(); break;
-                case 0xDF: set<address_mode::a, 3>(); break;
-
-                case 0xE0: set<address_mode::b, 4>(); break;
-                case 0xE1: set<address_mode::c, 4>(); break;
-                case 0xE2: set<address_mode::d, 4>(); break;
-                case 0xE3: set<address_mode::e, 4>(); break;
-                case 0xE4: set<address_mode::h, 4>(); break;
-                case 0xE5: set<address_mode::l, 4>(); break;
-                case 0xE6: set<address_mode::hl_indirect, 4>(); break;
-                case 0xE7: set<address_mode::a, 4>(); break;
-                case 0xE8: set<address_mode::b, 5>(); break;
-                case 0xE9: set<address_mode::c, 5>(); break;
-                case 0xEA: set<address_mode::d, 5>(); break;
-                case 0xEB: set<address_mode::e, 5>(); break;
-                case 0xEC: set<address_mode::h, 5>(); break;
-                case 0xED: set<address_mode::l, 5>(); break;
-                case 0xEE: set<address_mode::hl_indirect, 5>(); break;
-                case 0xEF: set<address_mode::a, 5>(); break;
-
-                case 0xF0: set<address_mode::b, 6>(); break;
-                case 0xF1: set<address_mode::c, 6>(); break;
-                case 0xF2: set<address_mode::d, 6>(); break;
-                case 0xF3: set<address_mode::e, 6>(); break;
-                case 0xF4: set<address_mode::h, 6>(); break;
-                case 0xF5: set<address_mode::l, 6>(); break;
-                case 0xF6: set<address_mode::hl_indirect, 6>(); break;
-                case 0xF7: set<address_mode::a, 6>(); break;
-                case 0xF8: set<address_mode::b, 7>(); break;
-                case 0xF9: set<address_mode::c, 7>(); break;
-                case 0xFA: set<address_mode::d, 7>(); break;
-                case 0xFB: set<address_mode::e, 7>(); break;
-                case 0xFC: set<address_mode::h, 7>(); break;
-                case 0xFD: set<address_mode::l, 7>(); break;
-                case 0xFE: set<address_mode::hl_indirect, 7>(); break;
-                case 0xFF: set<address_mode::a, 7>(); break;
-                default: break;
-            }
-            break;
-        }
+        case 0xCB: execute_cb(get_operand<address_mode::imm_8>()); break;
         case 0xCC: call<condition::z>(); break;
         case 0xCD: call(); break;
         case 0xCE: adc<address_mode::imm_8>(); break;
@@ -1228,7 +954,287 @@ void cpu::tick()
         case 0xFD:
         break;
 
-        default: break;
+        default: std::unreachable();
+    }
+    //@formatter:on
+}
+
+void cpu::execute_cb(const u8 opcode)
+{
+    //@formatter:off
+    switch (opcode) {
+        case 0x00: rlc<address_mode::b>(); break;
+        case 0x01: rlc<address_mode::c>(); break;
+        case 0x02: rlc<address_mode::d>(); break;
+        case 0x03: rlc<address_mode::e>(); break;
+        case 0x04: rlc<address_mode::h>(); break;
+        case 0x05: rlc<address_mode::l>(); break;
+        case 0x06: rlc<address_mode::hl_indirect>(); break;
+        case 0x07: rlc<address_mode::a>(); break;
+        case 0x08: rrc<address_mode::b>(); break;
+        case 0x09: rrc<address_mode::c>(); break;
+        case 0x0A: rrc<address_mode::d>(); break;
+        case 0x0B: rrc<address_mode::e>(); break;
+        case 0x0C: rrc<address_mode::h>(); break;
+        case 0x0D: rrc<address_mode::l>(); break;
+        case 0x0E: rrc<address_mode::hl_indirect>(); break;
+        case 0x0F: rrc<address_mode::a>(); break;
+
+        case 0x10: rl<address_mode::b>(); break;
+        case 0x11: rl<address_mode::c>(); break;
+        case 0x12: rl<address_mode::d>(); break;
+        case 0x13: rl<address_mode::e>(); break;
+        case 0x14: rl<address_mode::h>(); break;
+        case 0x15: rl<address_mode::l>(); break;
+        case 0x16: rl<address_mode::hl_indirect>(); break;
+        case 0x17: rl<address_mode::a>(); break;
+        case 0x18: rr<address_mode::b>(); break;
+        case 0x19: rr<address_mode::c>(); break;
+        case 0x1A: rr<address_mode::d>(); break;
+        case 0x1B: rr<address_mode::e>(); break;
+        case 0x1C: rr<address_mode::h>(); break;
+        case 0x1D: rr<address_mode::l>(); break;
+        case 0x1E: rr<address_mode::hl_indirect>(); break;
+        case 0x1F: rr<address_mode::a>(); break;
+
+        case 0x20: sla<address_mode::b>(); break;
+        case 0x21: sla<address_mode::c>(); break;
+        case 0x22: sla<address_mode::d>(); break;
+        case 0x23: sla<address_mode::e>(); break;
+        case 0x24: sla<address_mode::h>(); break;
+        case 0x25: sla<address_mode::l>(); break;
+        case 0x26: sla<address_mode::hl_indirect>(); break;
+        case 0x27: sla<address_mode::a>(); break;
+        case 0x28: sra<address_mode::b>(); break;
+        case 0x29: sra<address_mode::c>(); break;
+        case 0x2A: sra<address_mode::d>(); break;
+        case 0x2B: sra<address_mode::e>(); break;
+        case 0x2C: sra<address_mode::h>(); break;
+        case 0x2D: sra<address_mode::l>(); break;
+        case 0x2E: sra<address_mode::hl_indirect>(); break;
+        case 0x2F: sra<address_mode::a>(); break;
+
+        case 0x30: swap<address_mode::b>(); break;
+        case 0x31: swap<address_mode::c>(); break;
+        case 0x32: swap<address_mode::d>(); break;
+        case 0x33: swap<address_mode::e>(); break;
+        case 0x34: swap<address_mode::h>(); break;
+        case 0x35: swap<address_mode::l>(); break;
+        case 0x36: swap<address_mode::hl_indirect>(); break;
+        case 0x37: swap<address_mode::a>(); break;
+        case 0x38: srl<address_mode::b>(); break;
+        case 0x39: srl<address_mode::c>(); break;
+        case 0x3A: srl<address_mode::d>(); break;
+        case 0x3B: srl<address_mode::e>(); break;
+        case 0x3C: srl<address_mode::h>(); break;
+        case 0x3D: srl<address_mode::l>(); break;
+        case 0x3E: srl<address_mode::hl_indirect>(); break;
+        case 0x3F: srl<address_mode::a>(); break;
+
+        case 0x40: bit<address_mode::b, 0>(); break;
+        case 0x41: bit<address_mode::c, 0>(); break;
+        case 0x42: bit<address_mode::d, 0>(); break;
+        case 0x43: bit<address_mode::e, 0>(); break;
+        case 0x44: bit<address_mode::h, 0>(); break;
+        case 0x45: bit<address_mode::l, 0>(); break;
+        case 0x46: bit<address_mode::hl_indirect, 0>(); break;
+        case 0x47: bit<address_mode::a, 0>(); break;
+        case 0x48: bit<address_mode::b, 1>(); break;
+        case 0x49: bit<address_mode::c, 1>(); break;
+        case 0x4A: bit<address_mode::d, 1>(); break;
+        case 0x4B: bit<address_mode::e, 1>(); break;
+        case 0x4C: bit<address_mode::h, 1>(); break;
+        case 0x4D: bit<address_mode::l, 1>(); break;
+        case 0x4E: bit<address_mode::hl_indirect, 1>(); break;
+        case 0x4F: bit<address_mode::a, 1>(); break;
+
+        case 0x50: bit<address_mode::b, 2>(); break;
+        case 0x51: bit<address_mode::c, 2>(); break;
+        case 0x52: bit<address_mode::d, 2>(); break;
+        case 0x53: bit<address_mode::e, 2>(); break;
+        case 0x54: bit<address_mode::h, 2>(); break;
+        case 0x55: bit<address_mode::l, 2>(); break;
+        case 0x56: bit<address_mode::hl_indirect, 2>(); break;
+        case 0x57: bit<address_mode::a, 2>(); break;
+        case 0x58: bit<address_mode::b, 3>(); break;
+        case 0x59: bit<address_mode::c, 3>(); break;
+        case 0x5A: bit<address_mode::d, 3>(); break;
+        case 0x5B: bit<address_mode::e, 3>(); break;
+        case 0x5C: bit<address_mode::h, 3>(); break;
+        case 0x5D: bit<address_mode::l, 3>(); break;
+        case 0x5E: bit<address_mode::hl_indirect, 3>(); break;
+        case 0x5F: bit<address_mode::a, 3>(); break;
+
+        case 0x60: bit<address_mode::b, 4>(); break;
+        case 0x61: bit<address_mode::c, 4>(); break;
+        case 0x62: bit<address_mode::d, 4>(); break;
+        case 0x63: bit<address_mode::e, 4>(); break;
+        case 0x64: bit<address_mode::h, 4>(); break;
+        case 0x65: bit<address_mode::l, 4>(); break;
+        case 0x66: bit<address_mode::hl_indirect, 4>(); break;
+        case 0x67: bit<address_mode::a, 4>(); break;
+        case 0x68: bit<address_mode::b, 5>(); break;
+        case 0x69: bit<address_mode::c, 5>(); break;
+        case 0x6A: bit<address_mode::d, 5>(); break;
+        case 0x6B: bit<address_mode::e, 5>(); break;
+        case 0x6C: bit<address_mode::h, 5>(); break;
+        case 0x6D: bit<address_mode::l, 5>(); break;
+        case 0x6E: bit<address_mode::hl_indirect, 5>(); break;
+        case 0x6F: bit<address_mode::a, 5>(); break;
+
+        case 0x70: bit<address_mode::b, 6>(); break;
+        case 0x71: bit<address_mode::c, 6>(); break;
+        case 0x72: bit<address_mode::d, 6>(); break;
+        case 0x73: bit<address_mode::e, 6>(); break;
+        case 0x74: bit<address_mode::h, 6>(); break;
+        case 0x75: bit<address_mode::l, 6>(); break;
+        case 0x76: bit<address_mode::hl_indirect, 6>(); break;
+        case 0x77: bit<address_mode::a, 6>(); break;
+        case 0x78: bit<address_mode::b, 7>(); break;
+        case 0x79: bit<address_mode::c, 7>(); break;
+        case 0x7A: bit<address_mode::d, 7>(); break;
+        case 0x7B: bit<address_mode::e, 7>(); break;
+        case 0x7C: bit<address_mode::h, 7>(); break;
+        case 0x7D: bit<address_mode::l, 7>(); break;
+        case 0x7E: bit<address_mode::hl_indirect, 7>(); break;
+        case 0x7F: bit<address_mode::a, 7>(); break;
+
+        case 0x80: res<address_mode::b, 0>(); break;
+        case 0x81: res<address_mode::c, 0>(); break;
+        case 0x82: res<address_mode::d, 0>(); break;
+        case 0x83: res<address_mode::e, 0>(); break;
+        case 0x84: res<address_mode::h, 0>(); break;
+        case 0x85: res<address_mode::l, 0>(); break;
+        case 0x86: res<address_mode::hl_indirect, 0>(); break;
+        case 0x87: res<address_mode::a, 0>(); break;
+        case 0x88: res<address_mode::b, 1>(); break;
+        case 0x89: res<address_mode::c, 1>(); break;
+        case 0x8A: res<address_mode::d, 1>(); break;
+        case 0x8B: res<address_mode::e, 1>(); break;
+        case 0x8C: res<address_mode::h, 1>(); break;
+        case 0x8D: res<address_mode::l, 1>(); break;
+        case 0x8E: res<address_mode::hl_indirect, 1>(); break;
+        case 0x8F: res<address_mode::a, 1>(); break;
+
+        case 0x90: res<address_mode::b, 2>(); break;
+        case 0x91: res<address_mode::c, 2>(); break;
+        case 0x92: res<address_mode::d, 2>(); break;
+        case 0x93: res<address_mode::e, 2>(); break;
+        case 0x94: res<address_mode::h, 2>(); break;
+        case 0x95: res<address_mode::l, 2>(); break;
+        case 0x96: res<address_mode::hl_indirect, 2>(); break;
+        case 0x97: res<address_mode::a, 2>(); break;
+        case 0x98: res<address_mode::b, 3>(); break;
+        case 0x99: res<address_mode::c, 3>(); break;
+        case 0x9A: res<address_mode::d, 3>(); break;
+        case 0x9B: res<address_mode::e, 3>(); break;
+        case 0x9C: res<address_mode::h, 3>(); break;
+        case 0x9D: res<address_mode::l, 3>(); break;
+        case 0x9E: res<address_mode::hl_indirect, 3>(); break;
+        case 0x9F: res<address_mode::a, 3>(); break;
+
+        case 0xA0: res<address_mode::b, 4>(); break;
+        case 0xA1: res<address_mode::c, 4>(); break;
+        case 0xA2: res<address_mode::d, 4>(); break;
+        case 0xA3: res<address_mode::e, 4>(); break;
+        case 0xA4: res<address_mode::h, 4>(); break;
+        case 0xA5: res<address_mode::l, 4>(); break;
+        case 0xA6: res<address_mode::hl_indirect, 4>(); break;
+        case 0xA7: res<address_mode::a, 4>(); break;
+        case 0xA8: res<address_mode::b, 5>(); break;
+        case 0xA9: res<address_mode::c, 5>(); break;
+        case 0xAA: res<address_mode::d, 5>(); break;
+        case 0xAB: res<address_mode::e, 5>(); break;
+        case 0xAC: res<address_mode::h, 5>(); break;
+        case 0xAD: res<address_mode::l, 5>(); break;
+        case 0xAE: res<address_mode::hl_indirect, 5>(); break;
+        case 0xAF: res<address_mode::a, 5>(); break;
+
+        case 0xB0: res<address_mode::b, 6>(); break;
+        case 0xB1: res<address_mode::c, 6>(); break;
+        case 0xB2: res<address_mode::d, 6>(); break;
+        case 0xB3: res<address_mode::e, 6>(); break;
+        case 0xB4: res<address_mode::h, 6>(); break;
+        case 0xB5: res<address_mode::l, 6>(); break;
+        case 0xB6: res<address_mode::hl_indirect, 6>(); break;
+        case 0xB7: res<address_mode::a, 6>(); break;
+        case 0xB8: res<address_mode::b, 7>(); break;
+        case 0xB9: res<address_mode::c, 7>(); break;
+        case 0xBA: res<address_mode::d, 7>(); break;
+        case 0xBB: res<address_mode::e, 7>(); break;
+        case 0xBC: res<address_mode::h, 7>(); break;
+        case 0xBD: res<address_mode::l, 7>(); break;
+        case 0xBE: res<address_mode::hl_indirect, 7>(); break;
+        case 0xBF: res<address_mode::a, 7>(); break;
+
+        case 0xC0: set<address_mode::b, 0>(); break;
+        case 0xC1: set<address_mode::c, 0>(); break;
+        case 0xC2: set<address_mode::d, 0>(); break;
+        case 0xC3: set<address_mode::e, 0>(); break;
+        case 0xC4: set<address_mode::h, 0>(); break;
+        case 0xC5: set<address_mode::l, 0>(); break;
+        case 0xC6: set<address_mode::hl_indirect, 0>(); break;
+        case 0xC7: set<address_mode::a, 0>(); break;
+        case 0xC8: set<address_mode::b, 1>(); break;
+        case 0xC9: set<address_mode::c, 1>(); break;
+        case 0xCA: set<address_mode::d, 1>(); break;
+        case 0xCB: set<address_mode::e, 1>(); break;
+        case 0xCC: set<address_mode::h, 1>(); break;
+        case 0xCD: set<address_mode::l, 1>(); break;
+        case 0xCE: set<address_mode::hl_indirect, 1>(); break;
+        case 0xCF: set<address_mode::a, 1>(); break;
+
+        case 0xD0: set<address_mode::b, 2>(); break;
+        case 0xD1: set<address_mode::c, 2>(); break;
+        case 0xD2: set<address_mode::d, 2>(); break;
+        case 0xD3: set<address_mode::e, 2>(); break;
+        case 0xD4: set<address_mode::h, 2>(); break;
+        case 0xD5: set<address_mode::l, 2>(); break;
+        case 0xD6: set<address_mode::hl_indirect, 2>(); break;
+        case 0xD7: set<address_mode::a, 2>(); break;
+        case 0xD8: set<address_mode::b, 3>(); break;
+        case 0xD9: set<address_mode::c, 3>(); break;
+        case 0xDA: set<address_mode::d, 3>(); break;
+        case 0xDB: set<address_mode::e, 3>(); break;
+        case 0xDC: set<address_mode::h, 3>(); break;
+        case 0xDD: set<address_mode::l, 3>(); break;
+        case 0xDE: set<address_mode::hl_indirect, 3>(); break;
+        case 0xDF: set<address_mode::a, 3>(); break;
+
+        case 0xE0: set<address_mode::b, 4>(); break;
+        case 0xE1: set<address_mode::c, 4>(); break;
+        case 0xE2: set<address_mode::d, 4>(); break;
+        case 0xE3: set<address_mode::e, 4>(); break;
+        case 0xE4: set<address_mode::h, 4>(); break;
+        case 0xE5: set<address_mode::l, 4>(); break;
+        case 0xE6: set<address_mode::hl_indirect, 4>(); break;
+        case 0xE7: set<address_mode::a, 4>(); break;
+        case 0xE8: set<address_mode::b, 5>(); break;
+        case 0xE9: set<address_mode::c, 5>(); break;
+        case 0xEA: set<address_mode::d, 5>(); break;
+        case 0xEB: set<address_mode::e, 5>(); break;
+        case 0xEC: set<address_mode::h, 5>(); break;
+        case 0xED: set<address_mode::l, 5>(); break;
+        case 0xEE: set<address_mode::hl_indirect, 5>(); break;
+        case 0xEF: set<address_mode::a, 5>(); break;
+
+        case 0xF0: set<address_mode::b, 6>(); break;
+        case 0xF1: set<address_mode::c, 6>(); break;
+        case 0xF2: set<address_mode::d, 6>(); break;
+        case 0xF3: set<address_mode::e, 6>(); break;
+        case 0xF4: set<address_mode::h, 6>(); break;
+        case 0xF5: set<address_mode::l, 6>(); break;
+        case 0xF6: set<address_mode::hl_indirect, 6>(); break;
+        case 0xF7: set<address_mode::a, 6>(); break;
+        case 0xF8: set<address_mode::b, 7>(); break;
+        case 0xF9: set<address_mode::c, 7>(); break;
+        case 0xFA: set<address_mode::d, 7>(); break;
+        case 0xFB: set<address_mode::e, 7>(); break;
+        case 0xFC: set<address_mode::h, 7>(); break;
+        case 0xFD: set<address_mode::l, 7>(); break;
+        case 0xFE: set<address_mode::hl_indirect, 7>(); break;
+        case 0xFF: set<address_mode::a, 7>(); break;
+        default: std::unreachable();
     }
     //@formatter:on
 }

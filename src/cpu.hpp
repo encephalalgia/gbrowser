@@ -69,7 +69,7 @@ private:
     scheduler& scheduler;
     mmu& mmu;
     interrupts& interrupts;
-    u8 reg[8]{0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0, 0x01};
+    u8 reg[8]{0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0x00, 0x01};
     u16 sp{0xFFFE}, pc{0x100};
     bool zf{true}, nf{false}, hf{true}, cf{true};
     u8 ime{0};
@@ -100,10 +100,12 @@ private:
 
     [[nodiscard]] u8 fetch();
 
+    void execute_cb(u8 opcode);
+
 #pragma region Instructions // (https://rgbds.gbdev.io/docs/v0.9.3/gbz80.7)
     // Misc
 
-    void stop() const;
+    void stop();
 
     void halt();
 

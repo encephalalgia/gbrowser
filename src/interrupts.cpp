@@ -3,7 +3,7 @@
 
 void interrupts::req(const u8 source)
 {
-    flag |= (1 << source);
+    flag |= source;
 }
 
 u8 interrupts::pending() const
@@ -16,12 +16,11 @@ u16 interrupts::consume()
     const u8 queued{pending()};
 
     if (queued == 0) [[unlikely]] {
-        return 0x0000;
+        return 0;
     }
 
-    const int flag_bit{std::countr_zero(queued)};
+    const int index{std::countr_zero(queued)};
 
-    flag &= ~(1 << flag_bit);
-
-    return handler[flag_bit];
+    flag ^= (1U << index);
+    return base + (static_cast<u16>(index) * scale);
 }

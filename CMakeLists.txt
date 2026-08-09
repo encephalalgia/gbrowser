@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.29)
 project(gbrowser)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 
 add_executable(gbrowser main.cpp
         src/types.hpp
@@ -15,7 +15,6 @@ add_executable(gbrowser main.cpp
         src/mmu.hpp
         src/timer.cpp
         src/timer.hpp
-        src/interrupts.cpp
         src/interrupts.hpp
 )
 

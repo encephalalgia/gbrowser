@@ -36,7 +36,7 @@ u16 mmu::read16(const u16 addr)
 {
     const u8 lo = read8(addr);
     const u8 hi = read8(addr + 1);
-    return (hi << 8) | lo;
+    return (static_cast<u16>(hi) << 8) | lo;
 }
 
 void mmu::write8(const u16 addr, const u8 data)
