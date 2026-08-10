@@ -4,8 +4,9 @@
 #include "mmu.hpp"
 #include "interrupts.hpp"
 
-template<cpu::address_mode M>
-consteval bool cpu::is_8_bit()
+template<console model>
+template<auto M>
+consteval bool cpu<model>::is_8_bit()
 {
     return M != address_mode::bc
            and M != address_mode::de
@@ -15,8 +16,9 @@ consteval bool cpu::is_8_bit()
            and M != address_mode::imm_16;
 }
 
-template<cpu::condition cc>
-bool cpu::evaluate_condition() const
+template<console model>
+template<auto cc>
+bool cpu<model>::evaluate_condition() const
 {
     switch (cc) {
         case condition::none: return true;
@@ -29,8 +31,9 @@ bool cpu::evaluate_condition() const
     std::unreachable();
 }
 
-template<cpu::r hi, cpu::r lo>
-u16 cpu::get_pair() const
+template<console model>
+template<auto hi, auto lo>
+u16 cpu<model>::get_pair() const
 {
     if constexpr (lo == f) {
         return static_cast<u16>(reg[hi]) << 8 | zf << zbit | nf << nbit | hf << hbit | cf << cbit;
@@ -40,8 +43,9 @@ u16 cpu::get_pair() const
     }
 }
 
-template<cpu::r hi, cpu::r lo>
-void cpu::set_pair(const u16 val)
+template<console model>
+template<auto hi, auto lo>
+void cpu<model>::set_pair(const u16 val)
 {
     reg[hi] = val >> 8;
 
@@ -56,8 +60,9 @@ void cpu::set_pair(const u16 val)
     }
 }
 
-template<cpu::address_mode M>
-cpu::operand_t<M> cpu::get_operand()
+template<console model>
+template<auto M>
+cpu<model>::template operand_t<M> cpu<model>::get_operand()
 {
     if constexpr (M == address_mode::b) return reg[b];
     else if constexpr (M == address_mode::c) return reg[c];
@@ -94,8 +99,9 @@ cpu::operand_t<M> cpu::get_operand()
     std::unreachable();
 }
 
-template<cpu::address_mode M>
-void cpu::set_operand(operand_t<M> data)
+template<console model>
+template<auto M>
+void cpu<model>::set_operand(operand_t<M> data)
 {
     static_assert(
         M != address_mode::imm_8 and M != address_mode::imm_16,
@@ -130,7 +136,8 @@ void cpu::set_operand(operand_t<M> data)
     else if constexpr (M == address_mode::imm_16_indirect) mmu.write8(get_operand<address_mode::imm_16>(), data);
 }
 
-void cpu::service_interrupt()
+template<console model>
+void cpu<model>::service_interrupt()
 {
     ime = 0;
 
@@ -150,7 +157,8 @@ void cpu::service_interrupt()
     scheduler.tick();
 }
 
-u8 cpu::fetch()
+template<console model>
+u8 cpu<model>::fetch()
 {
     const u8 opcode{mmu.read8(pc)};
 
@@ -165,13 +173,15 @@ u8 cpu::fetch()
 }
 
 #pragma region Misc Instructions
-void cpu::stop()
+template<console model>
+void cpu<model>::stop()
 {
     ++pc; // STOP skips one byte after itself
     scheduler.stop();
 }
 
-void cpu::halt()
+template<console model>
+void cpu<model>::halt()
 {
     if (ime != 1 and interrupts.pending()) [[unlikely]] {
         halt_bugged = true;
@@ -181,12 +191,14 @@ void cpu::halt()
     }
 }
 
-void cpu::di()
+template<console model>
+void cpu<model>::di()
 {
     ime = 0;
 }
 
-void cpu::ei()
+template<console model>
+void cpu<model>::ei()
 {
     if (ime != 1) {
         ime = 2;
@@ -195,14 +207,16 @@ void cpu::ei()
 #pragma endregion
 
 #pragma region Load Instructions
-template<cpu::address_mode dst, cpu::address_mode src>
-void cpu::ld()
+template<console model>
+template<auto dst, auto src>
+void cpu<model>::ld()
 {
     set_operand<dst>(get_operand<src>());
 }
 
-template<cpu::address_mode dst, cpu::address_mode src>
-void cpu::ldh()
+template<console model>
+template<auto dst, auto src>
+void cpu<model>::ldh()
 {
     const auto addr{0xFF00 + get_operand<dst == address_mode::a ? src : dst>()};
 
@@ -214,8 +228,9 @@ void cpu::ldh()
     }
 }
 
-template<cpu::address_mode M>
-void cpu::ld_sp_e()
+template<console model>
+template<auto M>
+void cpu<model>::ld_sp_e()
 {
     const u8 e{get_operand<address_mode::imm_8>()};
     const s8 d{static_cast<s8>(e)};
@@ -232,26 +247,30 @@ void cpu::ld_sp_e()
     set_operand<M>(sum);
 }
 
-void cpu::ld_sp_hl()
+template<console model>
+void cpu<model>::ld_sp_hl()
 {
     scheduler.tick();
     sp = get_operand<address_mode::hl>();
 }
 
-void cpu::ld_nn_sp()
+template<console model>
+void cpu<model>::ld_nn_sp()
 {
     mmu.write16(get_operand<address_mode::imm_16>(), sp);
 }
 
-template<cpu::address_mode M>
-void cpu::pop()
+template<console model>
+template<auto M>
+void cpu<model>::pop()
 {
     set_operand<M>(mmu.read16(sp));
     sp += 2;
 }
 
-template<cpu::address_mode M>
-void cpu::push()
+template<console model>
+template<auto M>
+void cpu<model>::push()
 {
     const u16 data{get_operand<M>()};
     scheduler.tick();
@@ -261,8 +280,9 @@ void cpu::push()
 #pragma endregion
 
 #pragma region ALU Instructions
-template<cpu::address_mode M>
-void cpu::add()
+template<console model>
+template<auto M>
+void cpu<model>::add()
 {
     if constexpr (is_8_bit<M>()) {
         do_arithmetic<true>(get_operand<M>());
@@ -281,75 +301,86 @@ void cpu::add()
     }
 }
 
-template<cpu::address_mode M>
-void cpu::adc()
+template<console model>
+template<auto M>
+void cpu<model>::adc()
 {
     do_arithmetic<true>(get_operand<M>(), cf);
 }
 
-template<cpu::address_mode M>
-void cpu::sub()
+template<console model>
+template<auto M>
+void cpu<model>::sub()
 {
     do_arithmetic<false>(get_operand<M>());
 }
 
-template<cpu::address_mode M>
-void cpu::sbc()
+template<console model>
+template<auto M>
+void cpu<model>::sbc()
 {
     do_arithmetic<false>(get_operand<M>(), cf);
 }
 
-template<cpu::address_mode M>
-void cpu::land()
+template<console model>
+template<auto M>
+void cpu<model>::land()
 {
     reg[a] &= get_operand<M>();
     set_logic_flags<true>();
 }
 
-template<cpu::address_mode M>
-void cpu::lxor()
+template<console model>
+template<auto M>
+void cpu<model>::lxor()
 {
     reg[a] ^= get_operand<M>();
     set_logic_flags<false>();
 }
 
-template<cpu::address_mode M>
-void cpu::lor()
+template<console model>
+template<auto M>
+void cpu<model>::lor()
 {
     reg[a] |= get_operand<M>();
     set_logic_flags<false>();
 }
 
-template<cpu::address_mode M>
-void cpu::cp()
+template<console model>
+template<auto M>
+void cpu<model>::cp()
 {
     const u8 tmp{reg[a]};
     do_arithmetic<false>(get_operand<M>());
     reg[a] = tmp;
 }
 
-template<cpu::address_mode M>
-void cpu::inc()
+template<console model>
+template<auto M>
+void cpu<model>::inc()
 {
     do_increment<M, 1>();
 }
 
-template<cpu::address_mode M>
-void cpu::dec()
+template<console model>
+template<auto M>
+void cpu<model>::dec()
 {
     do_increment<M, -1>();
 }
 
+template<console model>
 template<bool was_and>
-void cpu::set_logic_flags()
+void cpu<model>::set_logic_flags()
 {
     zf = reg[a] == 0;
     nf = cf = false;
     hf = was_and;
 }
 
+template<console model>
 template<bool addition>
-void cpu::do_arithmetic(const u8 operand, const bool cy)
+void cpu<model>::do_arithmetic(const u8 operand, const bool cy)
 {
     u16 res;
     if constexpr (addition) {
@@ -367,8 +398,9 @@ void cpu::do_arithmetic(const u8 operand, const bool cy)
     reg[a] = res;
 }
 
-template<cpu::address_mode M, int sign>
-void cpu::do_increment()
+template<console model>
+template<auto M, int sign>
+void cpu<model>::do_increment()
 {
     if constexpr (is_8_bit<M>()) {
         const u8 res{static_cast<u8>(get_operand<M>() + sign)};
@@ -390,8 +422,9 @@ void cpu::do_increment()
 #pragma endregion
 
 #pragma region Rotate/Shift, Bit Instructions
-template<cpu::address_mode M>
-void cpu::rlc()
+template<console model>
+template<auto M>
+void cpu<model>::rlc()
 {
     u8 val{get_operand<M>()};
 
@@ -402,8 +435,9 @@ void cpu::rlc()
     set_operand<M>(val);
 }
 
-template<cpu::address_mode M>
-void cpu::rrc()
+template<console model>
+template<auto M>
+void cpu<model>::rrc()
 {
     u8 val{get_operand<M>()};
 
@@ -414,8 +448,9 @@ void cpu::rrc()
     set_operand<M>(val);
 }
 
-template<cpu::address_mode M>
-void cpu::rl()
+template<console model>
+template<auto M>
+void cpu<model>::rl()
 {
     u8 val{get_operand<M>()};
 
@@ -427,8 +462,9 @@ void cpu::rl()
     set_operand<M>(val);
 }
 
-template<cpu::address_mode M>
-void cpu::rr()
+template<console model>
+template<auto M>
+void cpu<model>::rr()
 {
     u8 val{get_operand<M>()};
 
@@ -440,8 +476,9 @@ void cpu::rr()
     set_operand<M>(val);
 }
 
-template<cpu::address_mode M>
-void cpu::sla()
+template<console model>
+template<auto M>
+void cpu<model>::sla()
 {
     u8 val{get_operand<M>()};
 
@@ -452,8 +489,9 @@ void cpu::sla()
     set_operand<M>(val);
 }
 
-template<cpu::address_mode M>
-void cpu::sra()
+template<console model>
+template<auto M>
+void cpu<model>::sra()
 {
     u8 val{get_operand<M>()};
 
@@ -465,8 +503,9 @@ void cpu::sra()
     set_operand<M>(val);
 }
 
-template<cpu::address_mode M>
-void cpu::swap()
+template<console model>
+template<auto M>
+void cpu<model>::swap()
 {
     u8 val{get_operand<M>()};
 
@@ -477,8 +516,9 @@ void cpu::swap()
     set_operand<M>(val);
 }
 
-template<cpu::address_mode M>
-void cpu::srl()
+template<console model>
+template<auto M>
+void cpu<model>::srl()
 {
     u8 val{get_operand<M>()};
 
@@ -489,8 +529,9 @@ void cpu::srl()
     set_operand<M>(val);
 }
 
-template<cpu::address_mode M, u8 b3>
-void cpu::bit()
+template<console model>
+template<auto M, u8 b3>
+void cpu<model>::bit()
 {
     const u8 val{get_operand<M>()};
     zf = ((val >> b3) & 1) == 0;
@@ -498,19 +539,22 @@ void cpu::bit()
     hf = true;
 }
 
-template<cpu::address_mode M, u8 b3>
-void cpu::res()
+template<console model>
+template<auto M, u8 b3>
+void cpu<model>::res()
 {
     set_operand<M>(get_operand<M>() & ~(1u << b3));
 }
 
-template<cpu::address_mode M, u8 b3>
-void cpu::set()
+template<console model>
+template<auto M, u8 b3>
+void cpu<model>::set()
 {
     set_operand<M>(get_operand<M>() | (1u << b3));
 }
 
-void cpu::set_shift_flags(const u8 val)
+template<console model>
+void cpu<model>::set_shift_flags(const u8 val)
 {
     zf = val == 0;
     nf = hf = false;
@@ -518,7 +562,8 @@ void cpu::set_shift_flags(const u8 val)
 #pragma endregion
 
 #pragma region Acummulator/Flag Instructions
-void cpu::daa()
+template<console model>
+void cpu<model>::daa()
 {
     if (nf) {
         if (cf) {
@@ -544,32 +589,37 @@ void cpu::daa()
     hf = false;
 }
 
-void cpu::cpl()
+template<console model>
+void cpu<model>::cpl()
 {
     reg[a] = ~reg[a];
     nf = hf = true;
 }
 
-void cpu::scf()
+template<console model>
+void cpu<model>::scf()
 {
     nf = hf = false;
     cf = true;
 }
 
-void cpu::ccf()
+template<console model>
+void cpu<model>::ccf()
 {
     nf = hf = false;
     cf = !cf;
 }
 
-void cpu::rlca()
+template<console model>
+void cpu<model>::rlca()
 {
     cf = reg[a] & 0x80;
     reg[a] = (reg[a] << 1) | cf;
     zf = nf = hf = false;
 }
 
-void cpu::rla()
+template<console model>
+void cpu<model>::rla()
 {
     const bool old_cf{cf};
     cf = reg[a] & 0x80;
@@ -577,14 +627,16 @@ void cpu::rla()
     zf = nf = hf = false;
 }
 
-void cpu::rrca()
+template<console model>
+void cpu<model>::rrca()
 {
     cf = reg[a] & 1;
     reg[a] = (reg[a] >> 1) | (cf << 7);
     zf = nf = hf = false;
 }
 
-void cpu::rra()
+template<console model>
+void cpu<model>::rra()
 {
     const bool old_cf{cf};
     cf = reg[a] & 1;
@@ -594,8 +646,9 @@ void cpu::rra()
 #pragma endregion
 
 #pragma region Branch Instructions
-template<cpu::condition cc>
-void cpu::ret()
+template<console model>
+template<auto cc>
+void cpu<model>::ret()
 {
     if constexpr (cc != condition::none) scheduler.tick();
     if (not evaluate_condition<cc>()) return;
@@ -606,14 +659,16 @@ void cpu::ret()
     sp += 2;
 }
 
-void cpu::reti()
+template<console model>
+void cpu<model>::reti()
 {
     ime = 1;
     ret();
 }
 
-template<cpu::condition cc>
-void cpu::jp()
+template<console model>
+template<auto cc>
+void cpu<model>::jp()
 {
     const u16 addr{get_operand<address_mode::imm_16>()};
     if (not evaluate_condition<cc>()) return;
@@ -622,8 +677,9 @@ void cpu::jp()
     pc = addr;
 }
 
-template<cpu::condition cc>
-void cpu::jr()
+template<console model>
+template<auto cc>
+void cpu<model>::jr()
 {
     const s8 d{static_cast<s8>(get_operand<address_mode::imm_8>())};
     if (not evaluate_condition<cc>()) return;
@@ -632,8 +688,9 @@ void cpu::jr()
     pc += d;
 }
 
-template<cpu::condition cc>
-void cpu::call()
+template<console model>
+template<auto cc>
+void cpu<model>::call()
 {
     const u16 addr{get_operand<address_mode::imm_16>()};
     if (not evaluate_condition<cc>()) return;
@@ -642,14 +699,16 @@ void cpu::call()
     pc = addr;
 }
 
+template<console model>
 template<u8 tgt3>
-void cpu::rst()
+void cpu<model>::rst()
 {
     push_pc();
     pc = tgt3;
 }
 
-void cpu::push_pc()
+template<console model>
+void cpu<model>::push_pc()
 {
     scheduler.tick();
     mmu.write8(--sp, pc >> 8);
@@ -657,7 +716,8 @@ void cpu::push_pc()
 }
 #pragma endregion
 
-void cpu::tick()
+template<console model>
+void cpu<model>::tick()
 {
     if (interrupts.pending()) {
         halted = false;
@@ -959,7 +1019,8 @@ void cpu::tick()
     //@formatter:on
 }
 
-void cpu::execute_cb(const u8 opcode)
+template<console model>
+void cpu<model>::execute_cb(const u8 opcode)
 {
     //@formatter:off
     switch (opcode) {
@@ -1240,7 +1301,8 @@ void cpu::execute_cb(const u8 opcode)
 }
 
 #ifndef NDEBUG
-std::string cpu::to_string()
+template<console model>
+std::string cpu<model>::to_string()
 {
     return std::format(
         "PC: {:0>4X}, A: {:0>2X}, F: {:x}{:x}{:x}{:x}, BC: {:0>4X}, DE: {:0>4X}, HL: {:0>4X}, SP: {:0>4X} \tram=({:0>2X} {:0>2X} {:0>2X} {:0>2X})",
@@ -1255,3 +1317,6 @@ std::string cpu::to_string()
         mmu.ram[pc], mmu.ram[pc + 1U], mmu.ram[pc + 2U], mmu.ram[pc + 3U]);
 }
 #endif
+
+template class cpu<console::dmg>;
+template class cpu<console::cgb>;

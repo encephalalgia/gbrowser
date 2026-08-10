@@ -1,18 +1,24 @@
 #include "scheduler.hpp"
 #include "timer.hpp"
 
-void scheduler::tick() const
+template<console model>
+void scheduler<model>::tick() const
 {
     timer.tick();
 }
 
-void scheduler::stop()
+template<console model>
+void scheduler<model>::stop()
 {
     stopped = true;
     timer.set_div();
 }
 
-void scheduler::wake()
+template<console model>
+void scheduler<model>::wake()
 {
     stopped = false;
 }
+
+template class scheduler<console::dmg>;
+template class scheduler<console::cgb>;

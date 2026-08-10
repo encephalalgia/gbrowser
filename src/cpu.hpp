@@ -7,13 +7,18 @@
 #include <type_traits>
 #include "types.hpp"
 
+template<console model>
 class scheduler;
+
+template<console model>
 class mmu;
+
 class interrupts;
 
+template<console model>
 class cpu {
 public:
-    cpu(scheduler& s, mmu& m, interrupts& i)
+    cpu(scheduler<model>& s, mmu<model>& m, interrupts& i)
         : scheduler{s}, mmu{m}, interrupts{i}
     {}
 
@@ -66,34 +71,43 @@ private:
 
     // CPU Internals
 
-    scheduler& scheduler;
-    mmu& mmu;
+    scheduler<model>& scheduler;
+    mmu<model>& mmu;
     interrupts& interrupts;
-    u8 reg[8]{0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0x00, 0x01};
+    u8 reg[8]{
+        0x00,
+        model == console::dmg ? 0x13 : 0x00,
+        model == console::dmg ? 0x00 : 0xFF,
+        model == console::dmg ? 0xD8 : 0x56,
+        model == console::dmg ? 0x01 : 0x00,
+        model == console::dmg ? 0x4D : 0x0D,
+        0x00,
+        model == console::dmg ? 0x01 : 0x11,
+    };
     u16 sp{0xFFFE}, pc{0x100};
-    bool zf{true}, nf{false}, hf{true}, cf{true};
+    bool zf{model == console::dmg}, nf{false}, hf{true}, cf{true};
     u8 ime{0};
     bool halted{false}, halt_bugged{false};
 
-    template<address_mode M>
+    template<auto M>
     static consteval bool is_8_bit();
 
-    template<address_mode M>
+    template<auto M>
     using operand_t = std::conditional_t<is_8_bit<M>(), u8, u16>;
 
-    template<condition cc = condition::none>
+    template<auto cc = condition::none>
     [[nodiscard]] bool evaluate_condition() const;
 
-    template<r hi, r lo>
+    template<auto hi, auto lo>
     [[nodiscard]] u16 get_pair() const;
 
-    template<r hi, r lo>
+    template<auto hi, auto lo>
     void set_pair(u16 val);
 
-    template<address_mode M>
+    template<auto M>
     [[nodiscard]] operand_t<M> get_operand();
 
-    template<address_mode M>
+    template<auto M>
     void set_operand(operand_t<M> data);
 
     void service_interrupt();
@@ -115,55 +129,55 @@ private:
 
     // Load
 
-    template<address_mode dst, address_mode src>
+    template<auto dst, auto src>
     void ld();
 
-    template<address_mode dst, address_mode src>
+    template<auto dst, auto src>
     void ldh();
 
-    template<address_mode M>
+    template<auto M>
     void ld_sp_e();
 
     void ld_sp_hl();
 
     void ld_nn_sp();
 
-    template<address_mode M>
+    template<auto M>
     void pop();
 
-    template<address_mode M>
+    template<auto M>
     void push();
 
     // ALU
 
-    template<address_mode M>
+    template<auto M>
     void add();
 
-    template<address_mode M>
+    template<auto M>
     void adc();
 
-    template<address_mode M>
+    template<auto M>
     void sub();
 
-    template<address_mode M>
+    template<auto M>
     void sbc();
 
-    template<address_mode M>
+    template<auto M>
     void land();
 
-    template<address_mode M>
+    template<auto M>
     void lxor();
 
-    template<address_mode M>
+    template<auto M>
     void lor();
 
-    template<address_mode M>
+    template<auto M>
     void cp();
 
-    template<address_mode M>
+    template<auto M>
     void inc();
 
-    template<address_mode M>
+    template<auto M>
     void dec();
 
     // ALU helpers
@@ -174,42 +188,42 @@ private:
     template<bool addition>
     void do_arithmetic(u8 operand, bool cy = false);
 
-    template<address_mode M, int sign>
+    template<auto M, int sign>
     void do_increment();
 
     // Rotate/Shift, Bit
 
-    template<address_mode M>
+    template<auto M>
     void rlc();
 
-    template<address_mode M>
+    template<auto M>
     void rrc();
 
-    template<address_mode M>
+    template<auto M>
     void rl();
 
-    template<address_mode M>
+    template<auto M>
     void rr();
 
-    template<address_mode M>
+    template<auto M>
     void sla();
 
-    template<address_mode M>
+    template<auto M>
     void sra();
 
-    template<address_mode M>
+    template<auto M>
     void swap();
 
-    template<address_mode M>
+    template<auto M>
     void srl();
 
-    template<address_mode M, u8 b3>
+    template<auto M, u8 b3>
     void bit();
 
-    template<address_mode M, u8 b3>
+    template<auto M, u8 b3>
     void res();
 
-    template<address_mode M, u8 b3>
+    template<auto M, u8 b3>
     void set();
 
     // Rotate/Shift, Bit helpers
@@ -236,18 +250,18 @@ private:
 
     // Branch
 
-    template<condition cc = condition::none>
+    template<auto cc = condition::none>
     void ret();
 
     void reti();
 
-    template<condition cc = condition::none>
+    template<auto cc = condition::none>
     void jp();
 
-    template<condition cc = condition::none>
+    template<auto cc = condition::none>
     void jr();
 
-    template<condition cc = condition::none>
+    template<auto cc = condition::none>
     void call();
 
     template<u8 tgt3>

@@ -6,7 +6,8 @@
 #include "timer.hpp"
 #include "interrupts.hpp"
 
-void mmu::load_rom(const std::filesystem::path& path)
+template<console model>
+void mmu<model>::load_rom(const std::filesystem::path& path)
 {
     std::ifstream file{path, std::ios::binary};
 
@@ -22,7 +23,8 @@ void mmu::load_rom(const std::filesystem::path& path)
     }
 }
 
-u8 mmu::read8(const u16 addr)
+template<console model>
+u8 mmu<model>::read8(const u16 addr)
 {
     scheduler.tick();
 
@@ -32,14 +34,16 @@ u8 mmu::read8(const u16 addr)
     return io_read(addr & 0xFF);
 }
 
-u16 mmu::read16(const u16 addr)
+template<console model>
+u16 mmu<model>::read16(const u16 addr)
 {
     const u8 lo = read8(addr);
     const u8 hi = read8(addr + 1);
     return (static_cast<u16>(hi) << 8) | lo;
 }
 
-void mmu::write8(const u16 addr, const u8 data)
+template<console model>
+void mmu<model>::write8(const u16 addr, const u8 data)
 {
     scheduler.tick();
 
@@ -62,13 +66,15 @@ void mmu::write8(const u16 addr, const u8 data)
     }
 }
 
-void mmu::write16(const u16 addr, const u16 data)
+template<console model>
+void mmu<model>::write16(const u16 addr, const u16 data)
 {
     write8(addr, data & 0xFF);
     write8(addr + 1, data >> 8);
 }
 
-u8 mmu::io_read(const u16 addr) const
+template<console model>
+u8 mmu<model>::io_read(const u16 addr) const
 {
     switch (addr) {
         case 0x02:
@@ -83,7 +89,8 @@ u8 mmu::io_read(const u16 addr) const
     }
 }
 
-void mmu::io_write(const u16 addr, const u8 val)
+template<console model>
+void mmu<model>::io_write(const u16 addr, const u8 val)
 {
     //@formatter:off
     switch (addr) {
@@ -97,3 +104,6 @@ void mmu::io_write(const u16 addr, const u8 val)
     }
     //@formatter:on
 }
+
+template class mmu<console::dmg>;
+template class mmu<console::cgb>;

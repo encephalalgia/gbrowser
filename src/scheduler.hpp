@@ -2,11 +2,13 @@
 
 #include "types.hpp"
 
+template<console model>
 class timer;
 
+template<console model>
 class scheduler {
 public:
-    explicit scheduler(timer& t)
+    explicit scheduler(timer<model>& t)
         : timer{t}
     {}
 
@@ -19,6 +21,6 @@ public:
     void wake();
 
 private:
-    timer& timer;
+    timer<model>& timer;
     u32 cycle{};
 };

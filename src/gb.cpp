@@ -6,7 +6,8 @@ constexpr bool log{false};
 constexpr bool step_debug{false};
 #endif
 
-void gb::run(const long long cycles)
+template<console model>
+void gb<model>::run(const long long cycles)
 {
     if (cycles < -1) {
     }
@@ -28,3 +29,6 @@ void gb::run(const long long cycles)
         }
     }
 }
+
+template class gb<console::dmg>;
+template class gb<console::cgb>;

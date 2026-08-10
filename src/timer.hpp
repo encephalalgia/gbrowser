@@ -4,6 +4,7 @@
 
 class interrupts;
 
+template<console model>
 class timer {
 public:
     explicit timer(interrupts& i)
@@ -40,7 +41,7 @@ private:
     interrupts& interrupts;
     state current{running};
 
-    u16 sysclk{};
+    u16 sysclk{model == console::dmg ? 0xAB00 : 0x00};
     u8 sysclk_bit{0};
 
     void increment_tima();

@@ -16,6 +16,7 @@ add_executable(gbrowser main.cpp
         src/timer.cpp
         src/timer.hpp
         src/interrupts.hpp
+        src/interrupts.cpp
 )
 
 include(CheckIPOSupported)
