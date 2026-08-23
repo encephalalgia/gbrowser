@@ -3,10 +3,9 @@ project(gbrowser)
 
 set(CMAKE_CXX_STANDARD 23)
 
-add_executable(gbrowser main.cpp
-        src/types.hpp
-        src/gb.cpp
+add_executable(gbrowser main.cpp src/gb.cpp
         src/gb.hpp
+        src/types.hpp
         src/scheduler.cpp
         src/scheduler.hpp
         src/cpu.cpp
@@ -17,6 +16,12 @@ add_executable(gbrowser main.cpp
         src/timer.hpp
         src/interrupts.hpp
         src/interrupts.cpp
+        src/ppu.cpp
+        src/ppu.hpp
+        src/renderers/renderer.hpp
+        src/renderers/sdl_renderer.cpp
+        src/renderers/sdl_renderer.hpp
+        src/utils.hpp
 )
 
 include(CheckIPOSupported)

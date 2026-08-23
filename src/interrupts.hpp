@@ -7,7 +7,7 @@ class interrupts {
 public:
     enum source : u8 {
         vblank = 0b1,
-        lcd = 0b10,
+        stat = 0b10,
         timer = 0b100,
         serial = 0b1000,
         joypad = 0b10000,

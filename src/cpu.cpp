@@ -36,10 +36,10 @@ template<auto hi, auto lo>
 u16 cpu<model>::get_pair() const
 {
     if constexpr (lo == f) {
-        return static_cast<u16>(reg[hi]) << 8 | zf << zbit | nf << nbit | hf << hbit | cf << cbit;
+        return (reg[hi] << 8) | zf << zbit | nf << nbit | hf << hbit | cf << cbit;
     }
     else {
-        return static_cast<u16>(reg[hi]) << 8 | reg[lo];
+        return (reg[hi] << 8) | reg[lo];
     }
 }
 
@@ -81,18 +81,36 @@ cpu<model>::template operand_t<M> cpu<model>::get_operand()
     else if constexpr (M == address_mode::hl_indirect) return mmu.read8(get_pair<h, l>());
     else if constexpr (M == address_mode::hl_inc) {
         const u16 tmp{get_pair<h, l>()};
+
+        mmu.idu_input_rw(tmp);
+        const u8 data{mmu.read8(tmp)};
+
         set_pair<h, l>(tmp + 1);
-        return mmu.read8(tmp);
+        return data;
     }
     else if constexpr (M == address_mode::hl_dec) {
         const u16 tmp{get_pair<h, l>()};
+
+        mmu.idu_input_rw(tmp);
+        const u8 data{mmu.read8(tmp)};
+
         set_pair<h, l>(tmp - 1);
-        return mmu.read8(tmp);
+        return data;
     }
-    else if constexpr (M == address_mode::imm_8) return mmu.read8(pc++);
+    else if constexpr (M == address_mode::imm_8) {
+        const u8 data{mmu.read8(pc)};
+        mmu.idu_input_wr(pc++);
+
+        return data;
+    }
     else if constexpr (M == address_mode::imm_16) {
-        pc += 2;
-        return mmu.read16(pc - 2);
+        const u8 lo{mmu.read8(pc)};
+        mmu.idu_input_wr(pc++);
+
+        const u8 hi{mmu.read8(pc)};
+        mmu.idu_input_wr(pc++);
+
+        return (hi << 8) | lo;
     }
     else if constexpr (M == address_mode::imm_16_indirect) return mmu.read8(get_operand<address_mode::imm_16>());
 
@@ -125,13 +143,13 @@ void cpu<model>::set_operand(operand_t<M> data)
     else if constexpr (M == address_mode::hl_indirect) mmu.write8(get_pair<h, l>(), data);
     else if constexpr (M == address_mode::hl_inc) {
         const u16 tmp{get_pair<h, l>()};
-        set_pair<h, l>(tmp + 1);
         mmu.write8(tmp, data);
+        set_pair<h, l>(tmp + 1);
     }
     else if constexpr (M == address_mode::hl_dec) {
         const u16 tmp{get_pair<h, l>()};
-        set_pair<h, l>(tmp - 1);
         mmu.write8(tmp, data);
+        set_pair<h, l>(tmp - 1);
     }
     else if constexpr (M == address_mode::imm_16_indirect) mmu.write8(get_operand<address_mode::imm_16>(), data);
 }
@@ -149,6 +167,7 @@ void cpu<model>::service_interrupt()
     scheduler.tick();
     scheduler.tick();
 
+    mmu.idu_input_wr(sp);
     mmu.write8(--sp, pc >> 8);
     const u16 handler{interrupts.consume()};
     mmu.write8(--sp, pc & 0xFF);
@@ -166,7 +185,7 @@ u8 cpu<model>::fetch()
         halt_bugged = false;
     }
     else [[likely]] {
-        ++pc;
+        mmu.idu_input_wr(pc++);
     }
 
     return opcode;
@@ -264,8 +283,11 @@ template<console model>
 template<auto M>
 void cpu<model>::pop()
 {
-    set_operand<M>(mmu.read16(sp));
-    sp += 2;
+    const u8 lo{mmu.read8(sp)};
+    mmu.idu_input_wr(sp++);
+    const u8 hi{mmu.read8(sp++)};
+
+    set_operand<M>((hi << 8) | lo);
 }
 
 template<console model>
@@ -274,6 +296,7 @@ void cpu<model>::push()
 {
     const u16 data{get_operand<M>()};
     scheduler.tick();
+    mmu.idu_input_wr(sp);
     mmu.write8(--sp, data >> 8);
     mmu.write8(--sp, data & 0xFF);
 }
@@ -415,8 +438,10 @@ void cpu<model>::do_increment()
         set_operand<M>(res);
     }
     else {
+        const u16 val{get_operand<M>()};
         scheduler.tick();
-        set_operand<M>(get_operand<M>() + sign);
+        mmu.idu_input_wr(val);
+        set_operand<M>(val + sign);
     }
 }
 #pragma endregion
@@ -653,10 +678,12 @@ void cpu<model>::ret()
     if constexpr (cc != condition::none) scheduler.tick();
     if (not evaluate_condition<cc>()) return;
 
-    const u16 tmp{mmu.read16(sp)};
+    const u8 lo{mmu.read8(sp)};
+    mmu.idu_input_wr(sp++);
+    const u8 hi{mmu.read8(sp++)};
+
     scheduler.tick();
-    pc = tmp;
-    sp += 2;
+    pc = (hi << 8) | lo;
 }
 
 template<console model>
@@ -711,6 +738,7 @@ template<console model>
 void cpu<model>::push_pc()
 {
     scheduler.tick();
+    mmu.idu_input_wr(sp);
     mmu.write8(--sp, pc >> 8);
     mmu.write8(--sp, pc & 0xFF);
 }

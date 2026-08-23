@@ -22,5 +22,5 @@ u16 interrupts::consume()
     const int index{std::countr_zero(queued)};
 
     flag ^= (1U << index);
-    return base + (static_cast<u16>(index) * scale);
+    return base + (index * scale);
 }

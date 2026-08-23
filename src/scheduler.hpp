@@ -1,15 +1,19 @@
 #pragma once
 
+#include "ppu.hpp"
 #include "types.hpp"
 
 template<console model>
 class timer;
 
 template<console model>
+class ppu;
+
+template<console model>
 class scheduler {
 public:
-    explicit scheduler(timer<model>& t)
-        : timer{t}
+    scheduler(timer<model>& t, ppu<model>& p)
+        : timer{t}, ppu{p}
     {}
 
     bool stopped{false};
@@ -22,5 +26,6 @@ public:
 
 private:
     timer<model>& timer;
+    ppu<model>& ppu;
     u32 cycle{};
 };

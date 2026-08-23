@@ -5,6 +5,7 @@ template<console model>
 void scheduler<model>::tick() const
 {
     timer.tick();
+    ppu.tick(4);
 }
 
 template<console model>
